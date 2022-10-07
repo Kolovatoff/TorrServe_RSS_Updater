@@ -1,10 +1,10 @@
-from dataclasses import replace
-from datetime import datetime
-import xml.dom.minidom
-import requests
 import json
 import os
 import sys
+import xml.dom.minidom
+from datetime import datetime
+
+import requests
 
 # Torrserver
 hosts = [

@@ -15,12 +15,12 @@ class TorrServerRSSUpdater:
         config = toml.load('config.toml')
 
         # TorrServer's
-        hosts = config.get('torrservers')
+        torr_servers = config.get('torrservers')
         # Адрес RSS. Можно использовать RSS для чтения, чтобы подгрузить постеры напрямую из RSS
-        url = config.get('litr')
+        url = config.get('litr').get('url')
 
         # для загрузки постеров на imgur
-        imgur_token = ''
+        imgur_token = config.get('imgur_token').get('token')
         rss_text = requests.get(url).text
         print('Дата отправки запроса ' + str(datetime.now()))
         print('')
@@ -43,20 +43,20 @@ class TorrServerRSSUpdater:
         my_file.write(rss_text)
         my_file.close()
 
-        for host in hosts:
+        for torr_server in torr_servers:
             print('-------------------------------------------')
-            print(host)
+            print(torr_server['host'])
             print('-------------------------------------------')
             json_list = []
             json1 = {
                 'action': 'list'
             }
             try:
-                response = requests.post(host + '/torrents', '', json1, timeout=10)
+                response = requests.post(torr_server['host'] + '/torrents', '', json1, timeout=10)
                 # 200 - значит всё ОК
                 json_list = json.loads(response.text)
             except requests.exceptions.RequestException as e:
-                print('Ошибка подключения к хосту ' + host)
+                print('Ошибка подключения к хосту ' + torr_server['host'])
                 continue
 
             doc = xml.dom.minidom.parseString(rss_text)
@@ -127,7 +127,7 @@ class TorrServerRSSUpdater:
                     'hash': torrent_hash
                 }
                 try:
-                    response = requests.post(host + '/torrents', '', json1, timeout=10)
+                    response = requests.post(torr_server['host'] + '/torrents', '', json1, timeout=10)
                     # 200 - значит торрент уже добавлен
                     if response.status_code == 200:
                         print('Уже добавлен')
@@ -147,7 +147,7 @@ class TorrServerRSSUpdater:
                     'data': torrent_guid
                 }
                 try:
-                    response = requests.post(host + '/torrents', '', json1, timeout=10)
+                    response = requests.post(torr_server['host'] + '/torrents', '', json1, timeout=10)
                     # 200 - значит всё ОК
                     if response.status_code == 200:
                         print('Новый торрент добавлен')
@@ -183,7 +183,7 @@ class TorrServerRSSUpdater:
                     'hash': old_hash
                 }
                 try:
-                    response = requests.post(host + '/viewed', '', json1, timeout=10)
+                    response = requests.post(torr_server['host'] + '/viewed', '', json1, timeout=10)
                     # 200 - значит всё ОК
                     viewed_list = json.loads(response.text)
                 except requests.exceptions.RequestException as e:
@@ -198,7 +198,7 @@ class TorrServerRSSUpdater:
                         'file_index': viewed_index['file_index']
                     }
                     try:
-                        response = requests.post(host + '/viewed', '', json1, timeout=10)
+                        response = requests.post(torr_server['host'] + '/viewed', '', json1, timeout=10)
                         # 200 - значит всё ОК
                         if response.status_code == 200:
                             set_viewed_complete = True
@@ -214,7 +214,7 @@ class TorrServerRSSUpdater:
                     'hash': old_hash
                 }
                 try:
-                    response = requests.post(host + '/torrents', '', json1, timeout=10)
+                    response = requests.post(torr_server['host'] + '/torrents', '', json1, timeout=10)
                     # 200 - значит всё ОК
                     if response.status_code == 200:
                         print('Старый торрент удален')

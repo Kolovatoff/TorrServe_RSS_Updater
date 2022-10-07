@@ -10,7 +10,6 @@ import requests
 
 
 class TorrServerRSSUpdater:
-
     _config = dict
     _rss_update = str
     _rss_old = str
@@ -66,11 +65,14 @@ class TorrServerRSSUpdater:
                   'Сервер: {}\n'
                   '-------------------------------------------'.format(torrserver['host']))
             json_list = []
-            json1 = {
-                'action': 'list'
-            }
             try:
-                response = requests.post(torrserver['host'] + '/torrents', '', json1, timeout=10)
+                response = requests.post(
+                    torrserver['host'] + '/torrents',
+                    json={
+                        'action': 'list'
+                    },
+                    timeout=10
+                )
                 # 200 - значит всё ОК
                 json_list = json.loads(response.text)
             except requests.exceptions.RequestException as e:
@@ -137,12 +139,15 @@ class TorrServerRSSUpdater:
 
                 # Проверяем добавляли ли торрент с таким хэшем ранее, если да, то ничего не делаем
                 torrent_hash = torrent_link.replace('magnet:?xt=urn:btih:', '')
-                json1 = {
-                    'action': 'get',
-                    'hash': torrent_hash
-                }
                 try:
-                    response = requests.post(torrserver['host'] + '/torrents', '', json1, timeout=10)
+                    response = requests.post(
+                        torrserver['host'] + '/torrents',
+                        json={
+                            'action': 'get',
+                            'hash': torrent_hash
+                        },
+                        timeout=10
+                    )
                     # 200 - значит торрент уже добавлен
                     if response.status_code == 200:
                         print('Уже добавлен')
@@ -153,16 +158,19 @@ class TorrServerRSSUpdater:
                     continue
 
                 # Добавляем новый торрент
-                json1 = {
-                    'action': 'add',
-                    'link': torrent_link,
-                    'title': torrent_title,
-                    'poster': torrent_poster,
-                    'save_to_db': True,
-                    'data': torrent_guid
-                }
                 try:
-                    response = requests.post(torrserver['host'] + '/torrents', '', json1, timeout=10)
+                    response = requests.post(
+                        torrserver['host'] + '/torrents',
+                        json={
+                            'action': 'add',
+                            'link': torrent_link,
+                            'title': torrent_title,
+                            'poster': torrent_poster,
+                            'save_to_db': True,
+                            'data': torrent_guid
+                        },
+                        timeout=10
+                    )
                     # 200 - значит всё ОК
                     if response.status_code == 200:
                         print('Новый торрент добавлен')
@@ -193,12 +201,15 @@ class TorrServerRSSUpdater:
 
                 # запоминаем просмотренные серии из старого торрента
                 viewed_list = []
-                json1 = {
-                    'action': 'list',
-                    'hash': old_hash
-                }
                 try:
-                    response = requests.post(torrserver['host'] + '/viewed', '', json1, timeout=10)
+                    response = requests.post(
+                        torrserver['host'] + '/viewed',
+                        json={
+                            'action': 'list',
+                            'hash': old_hash
+                        },
+                        timeout=10
+                    )
                     # 200 - значит всё ОК
                     viewed_list = json.loads(response.text)
                 except requests.exceptions.RequestException as e:
@@ -207,13 +218,16 @@ class TorrServerRSSUpdater:
 
                 set_viewed_complete = False
                 for viewed_index in viewed_list:
-                    json1 = {
-                        'action': 'set',
-                        'hash': torrent_hash,
-                        'file_index': viewed_index['file_index']
-                    }
                     try:
-                        response = requests.post(torrserver['host'] + '/viewed', '', json1, timeout=10)
+                        response = requests.post(
+                            torrserver['host'] + '/viewed',
+                            json={
+                                'action': 'set',
+                                'hash': torrent_hash,
+                                'file_index': viewed_index['file_index']
+                            },
+                            timeout=10
+                        )
                         # 200 - значит всё ОК
                         if response.status_code == 200:
                             set_viewed_complete = True
@@ -224,12 +238,15 @@ class TorrServerRSSUpdater:
                 if set_viewed_complete:
                     print('Просмотренные серии загружены')
 
-                json1 = {
-                    'action': 'rem',
-                    'hash': old_hash
-                }
                 try:
-                    response = requests.post(torrserver['host'] + '/torrents', '', json1, timeout=10)
+                    response = requests.post(
+                        torrserver['host'] + '/torrents',
+                        json={
+                            'action': 'rem',
+                            'hash': old_hash
+                        },
+                        timeout=10
+                    )
                     # 200 - значит всё ОК
                     if response.status_code == 200:
                         print('Старый торрент удален')

@@ -53,11 +53,6 @@ class TorrServerRSSUpdater:
             my_file.close()
             return True
 
-    def run(self):
-
-        if self.check_updates():
-            self.process_torrserver()
-
     def process_torrserver(self):
         for torrserver in self._config.get('torrservers'):
             print('-------------------------------------------\n'
@@ -252,6 +247,11 @@ class TorrServerRSSUpdater:
                 except requests.exceptions.RequestException as e:
                     print('Ошибка подключения')
                     continue
+
+    def run(self):
+
+        if self.check_updates():
+            self.process_torrserver()
 
 
 if __name__ == '__main__':

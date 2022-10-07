@@ -163,7 +163,7 @@ class TorrServerRSSUpdater:
                     current_torrent += 1
                     if current_torrent > search_limit:
                         break
-                    if not 'data' in old_torrent or not 'hash' in old_torrent:
+                    if 'data' not in old_torrent or 'hash' not in old_torrent:
                         continue
                     if old_torrent['data'] == torrent_guid and old_torrent['hash'] != torrent_hash:
                         old_hash = old_torrent['hash']

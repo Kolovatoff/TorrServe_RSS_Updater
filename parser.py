@@ -53,7 +53,7 @@ class TorrServerRSSUpdater:
                 response = requests.post(host + '/torrents', '', json1, timeout=10)
                 # 200 - значит всё ОК
                 json_list = json.loads(response.text)
-            except:
+            except requests.exceptions.RequestException as e:
                 print('Ошибка подключения к хосту ' + host)
                 continue
 
@@ -110,8 +110,8 @@ class TorrServerRSSUpdater:
                     if r_imgur.status_code == 200:
                         try:
                             torrent_poster = r_imgur.json()['data']['link']
-                        except:
-                            ()
+                        except requests.exceptions.RequestException as e:
+                            print(e)
 
                 print(torrent_title)
                 print(torrent_link)
@@ -131,7 +131,7 @@ class TorrServerRSSUpdater:
                         print('Уже добавлен')
                         print('')
                         continue
-                except:
+                except requests.exceptions.RequestException as e:
                     print('Ошибка подключения')
                     continue
 
@@ -151,7 +151,7 @@ class TorrServerRSSUpdater:
                         print('Новый торрент добавлен')
                     else:
                         continue
-                except:
+                except requests.exceptions.RequestException as e:
                     print('Ошибка подключения')
                     continue
 
@@ -184,7 +184,7 @@ class TorrServerRSSUpdater:
                     response = requests.post(host + '/viewed', '', json1, timeout=10)
                     # 200 - значит всё ОК
                     viewed_list = json.loads(response.text)
-                except:
+                except requests.exceptions.RequestException as e:
                     print('Ошибка подключения')
                     continue
 
@@ -201,7 +201,7 @@ class TorrServerRSSUpdater:
                         if response.status_code == 200:
                             set_viewed_complete = True
                             continue
-                    except:
+                    except requests.exceptions.RequestException as e:
                         print('Ошибка подключения')
                         continue
                 if set_viewed_complete:
@@ -216,7 +216,7 @@ class TorrServerRSSUpdater:
                     # 200 - значит всё ОК
                     if response.status_code == 200:
                         print('Старый торрент удален')
-                except:
+                except requests.exceptions.RequestException as e:
                     print('Ошибка подключения')
                     continue
 

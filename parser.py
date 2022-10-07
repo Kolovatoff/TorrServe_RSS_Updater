@@ -19,17 +19,17 @@ class TorrServerRSSUpdater:
 
         # для загрузки постеров на imgur
         imgur_token = ''
-        RssText = requests.get(url).text
+        rss_text = requests.get(url).text
         print('Дата отправки запроса ' + str(datetime.now()))
         print('')
 
         otkaz = False
-        pathOldRSS = os.path.basename(sys.argv[0]) + '_old.rss'
+        path_old_rss = os.path.basename(sys.argv[0]) + '_old.rss'
         try:
-            oldRSS = open(pathOldRSS, 'r').read()
-            if (RssText == oldRSS):
+            old_rss = open(path_old_rss, 'r').read()
+            if rss_text == old_rss:
                 print('Без изменений. Пропущено')
-                print('Для перезапуска удалите файл ' + pathOldRSS)
+                print('Для перезапуска удалите файл ' + path_old_rss)
                 otkaz = True
         except:
             ()
@@ -37,8 +37,8 @@ class TorrServerRSSUpdater:
         if otkaz:
             exit()
 
-        my_file = open(pathOldRSS, 'w')
-        my_file.write(RssText)
+        my_file = open(path_old_rss, 'w')
+        my_file.write(rss_text)
         my_file.close()
 
         for host in hosts:
@@ -57,44 +57,44 @@ class TorrServerRSSUpdater:
                 print('Ошибка подключения к хосту ' + host)
                 continue
 
-            doc = xml.dom.minidom.parseString(RssText)
+            doc = xml.dom.minidom.parseString(rss_text)
             torrents = doc.getElementsByTagName('item')
             torrents_added = []
             for torrent in torrents:
 
-                Torrent_Title = ''
-                Torrent_Link = ''
-                Torrent_Poster = ''
-                Torrent_Guid = ''
+                torrent_title = ''
+                torrent_link = ''
+                torrent_poster = ''
+                torrent_guid = ''
                 for childTitle in torrent.getElementsByTagName('title'):
                     for childName in childTitle.childNodes:
-                        Torrent_Title = childName.data
+                        torrent_title = childName.data
                 for childLink in torrent.getElementsByTagName('link'):
                     for childName in childLink.childNodes:
-                        Torrent_Link = childName.data
+                        torrent_link = childName.data
                 for childGuid in torrent.getElementsByTagName('guid'):
                     for childName in childGuid.childNodes:
-                        Torrent_Guid = childName.data
+                        torrent_guid = childName.data
 
-                if (len(Torrent_Link) == 0) or (Torrent_Link[0:4] == 'http'):
+                if (len(torrent_link) == 0) or (torrent_link[0:4] == 'http'):
                     # значит это RSS для чтения, находим магнет ссылку и постер в html содержимом
-                    desriptionBlock = torrent.getElementsByTagName('description')
-                    if len(desriptionBlock) > 0 and len(desriptionBlock[0].childNodes) > 0:
-                        blockText = desriptionBlock[0].childNodes[0].data
+                    desription_block = torrent.getElementsByTagName('description')
+                    if len(desription_block) > 0 and len(desription_block[0].childNodes) > 0:
+                        block_text = desription_block[0].childNodes[0].data
                         img_tag = 'img src="'
-                        start_img = blockText.find(img_tag)
+                        start_img = block_text.find(img_tag)
                         if start_img > 0:
-                            end_img = blockText.find('" alt="', start_img)
-                            Torrent_Poster = blockText[start_img + len(img_tag):end_img]
-                        start_link = blockText.find('magnet:')
+                            end_img = block_text.find('" alt="', start_img)
+                            torrent_poster = block_text[start_img + len(img_tag):end_img]
+                        start_link = block_text.find('magnet:')
                         if start_link > 0:
-                            end_link = blockText.find('&', start_link)
-                            Torrent_Link = blockText[start_link:end_link]
-                ind_symbol = Torrent_Guid.rfind('#', 1);
+                            end_link = block_text.find('&', start_link)
+                            torrent_link = block_text[start_link:end_link]
+                ind_symbol = torrent_guid.rfind('#', 1);
                 if ind_symbol >= 0:
-                    Torrent_Guid = Torrent_Guid[0:ind_symbol]
+                    torrent_guid = torrent_guid[0:ind_symbol]
 
-                if len(imgur_token) > 0 and len(Torrent_Poster) > 0:
+                if len(imgur_token) > 0 and len(torrent_poster) > 0:
                     api = 'https://api.imgur.com/3/image'
 
                     params = dict(
@@ -102,27 +102,27 @@ class TorrServerRSSUpdater:
                     )
 
                     files123 = dict(
-                        image=(None, Torrent_Poster),
+                        image=(None, torrent_poster),
                         name=(None, ''),
                         type=(None, 'URL'),
                     )
                     r_imgur = requests.post(api, files=files123, params=params)
                     if r_imgur.status_code == 200:
                         try:
-                            Torrent_Poster = r_imgur.json()['data']['link']
+                            torrent_poster = r_imgur.json()['data']['link']
                         except:
                             ()
 
-                print(Torrent_Title)
-                print(Torrent_Link)
-                print(Torrent_Guid)
-                print(Torrent_Poster)
+                print(torrent_title)
+                print(torrent_link)
+                print(torrent_guid)
+                print(torrent_poster)
 
                 # Проверяем добавляли ли торрент с таким хэшем ранее, если да, то ничего не делаем
-                Torrent_Hash = Torrent_Link.replace('magnet:?xt=urn:btih:', '')
+                torrent_hash = torrent_link.replace('magnet:?xt=urn:btih:', '')
                 json1 = {
                     'action': 'get',
-                    'hash': Torrent_Hash
+                    'hash': torrent_hash
                 }
                 try:
                     response = requests.post(host + '/torrents', '', json1, timeout=10)
@@ -138,11 +138,11 @@ class TorrServerRSSUpdater:
                     # Добавляем новый торрент
                 json1 = {
                     'action': 'add',
-                    'link': Torrent_Link,
-                    'title': Torrent_Title,
-                    'poster': Torrent_Poster,
+                    'link': torrent_link,
+                    'title': torrent_title,
+                    'poster': torrent_poster,
                     'save_to_db': True,
-                    'data': Torrent_Guid
+                    'data': torrent_guid
                 }
                 try:
                     response = requests.post(host + '/torrents', '', json1, timeout=10)
@@ -157,7 +157,7 @@ class TorrServerRSSUpdater:
 
                 # Ищем старые торрренты, ищем просмотренные серии и удаляем
                 search_limit = 100
-                OldHash = ''
+                old_hash = ''
                 current_torrent = 0
                 for old_torrent in json_list:
                     current_torrent += 1
@@ -165,11 +165,11 @@ class TorrServerRSSUpdater:
                         break
                     if not 'data' in old_torrent or not 'hash' in old_torrent:
                         continue
-                    if old_torrent['data'] == Torrent_Guid and old_torrent['hash'] != Torrent_Hash:
-                        OldHash = old_torrent['hash']
+                    if old_torrent['data'] == torrent_guid and old_torrent['hash'] != torrent_hash:
+                        old_hash = old_torrent['hash']
                         break
 
-                if OldHash == '':
+                if old_hash == '':
                     # старый хэш не нашли
                     print('')
                     continue
@@ -178,7 +178,7 @@ class TorrServerRSSUpdater:
                 viewed_list = []
                 json1 = {
                     'action': 'list',
-                    'hash': OldHash
+                    'hash': old_hash
                 }
                 try:
                     response = requests.post(host + '/viewed', '', json1, timeout=10)
@@ -192,7 +192,7 @@ class TorrServerRSSUpdater:
                 for viewed_index in viewed_list:
                     json1 = {
                         'action': 'set',
-                        'hash': Torrent_Hash,
+                        'hash': torrent_hash,
                         'file_index': viewed_index['file_index']
                     }
                     try:
@@ -209,7 +209,7 @@ class TorrServerRSSUpdater:
 
                 json1 = {
                     'action': 'rem',
-                    'hash': OldHash
+                    'hash': old_hash
                 }
                 try:
                     response = requests.post(host + '/torrents', '', json1, timeout=10)

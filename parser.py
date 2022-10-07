@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import toml
 import xml.dom.minidom
 from datetime import datetime
 
@@ -10,12 +11,13 @@ import requests
 class TorrServerRSSUpdater:
 
     def run(self):
+
+        config = toml.load('config.toml')
+
         # TorrServer's
-        hosts = [
-            'http://192.168.1.83:8090'
-        ]
+        hosts = config.get('torrservers')
         # Адрес RSS. Можно использовать RSS для чтения, чтобы подгрузить постеры напрямую из RSS
-        url = 'http://litr.cc/rss/d02e7a69357c64210a8aa8d932e1cd64'
+        url = config.get('litr')
 
         # для загрузки постеров на imgur
         imgur_token = ''

@@ -33,8 +33,8 @@ class TorrServerRSSUpdater:
                 print('Без изменений. Пропущено')
                 print('Для перезапуска удалите файл ' + path_old_rss)
                 otkaz = True
-        except:
-            ()
+        except OSError:
+            print("Could not open/read file")
 
         if otkaz:
             exit()

@@ -14,23 +14,43 @@ class TorrServerRSSUpdater:
     _config = dict
     _rss_update = str
     _rss_old = str
+    _toml_string = """
+    [[torrservers]]
+    host = "http://127.0.0.1:8090"
+    
+    [litr]
+    url = "http://litr.cc/rss/..."
+    
+    [imgur_token]
+    token = ""
+    """
 
     def __init__(self, config='config.toml'):
-        self._config = toml.load(config)
+        if os.path.exists('config.toml'):
+            self._config = toml.load(config)
+        else:
+            parsed_toml = toml.loads(self._toml_string)
+            with open('config.toml', 'w') as f:
+                toml.dump(parsed_toml, f)
+            print('Создан файл конфигурации config.toml')
+            print('Отредактируйте файл конфигурации config.toml и запустите программу снова')
+            exit()
 
     def check_updates(self):
         print('Дата отправки запроса {}'.format(str(datetime.now())))
 
         self._rss_update = requests.get(self._config.get('litr').get('url')).text
-        path_old_rss = os.path.basename(sys.argv[0]) + '_old.rss'
-        try:
-            self._rss_old = open(path_old_rss, 'r', encoding="utf-8").read()
-            if self._rss_update == self._rss_old:
-                print('Без изменений. Пропущено')
-                print('Для перезапуска удалите файл {}'.format(path_old_rss))
-                return False
-        except OSError:
-            my_file = codecs.open(path_old_rss, 'w', 'utf-8')
+        if os.path.exists('old.rss'):
+            try:
+                self._rss_old = open('old.rss', 'r', encoding="utf-8").read()
+                if self._rss_update == self._rss_old:
+                    print('Без изменений. Пропущено')
+                    print('Для перезапуска удалите файл {}'.format('old.rss'))
+                    return False
+            except OSError:
+                raise "Ошибка чтения файла старого запроса"
+        else:
+            my_file = codecs.open('old.rss', 'w', 'utf-8')
             my_file.write(self._rss_update)
             my_file.close()
             return True

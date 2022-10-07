@@ -10,7 +10,7 @@ import requests
 class TorrServerRSSUpdater:
 
     def run(self):
-        # Torrserver
+        # TorrServer's
         hosts = [
             'http://192.168.1.83:8090'
         ]
@@ -78,9 +78,9 @@ class TorrServerRSSUpdater:
 
                 if (len(torrent_link) == 0) or (torrent_link[0:4] == 'http'):
                     # значит это RSS для чтения, находим магнет ссылку и постер в html содержимом
-                    desription_block = torrent.getElementsByTagName('description')
-                    if len(desription_block) > 0 and len(desription_block[0].childNodes) > 0:
-                        block_text = desription_block[0].childNodes[0].data
+                    description_block = torrent.getElementsByTagName('description')
+                    if len(description_block) > 0 and len(description_block[0].childNodes) > 0:
+                        block_text = description_block[0].childNodes[0].data
                         img_tag = 'img src="'
                         start_img = block_text.find(img_tag)
                         if start_img > 0:
@@ -135,7 +135,7 @@ class TorrServerRSSUpdater:
                     print('Ошибка подключения')
                     continue
 
-                    # Добавляем новый торрент
+                # Добавляем новый торрент
                 json1 = {
                     'action': 'add',
                     'link': torrent_link,
@@ -155,7 +155,7 @@ class TorrServerRSSUpdater:
                     print('Ошибка подключения')
                     continue
 
-                # Ищем старые торрренты, ищем просмотренные серии и удаляем
+                # Ищем старые торренты, ищем просмотренные серии и удаляем
                 search_limit = 100
                 old_hash = ''
                 current_torrent = 0

@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import toml
+import codecs
 import xml.dom.minidom
 from datetime import datetime
 
@@ -10,64 +11,58 @@ import requests
 
 class TorrServerRSSUpdater:
 
-    def run(self):
+    _config = dict
+    _rss_update = str
+    _rss_old = str
 
-        config = toml.load('config.toml')
+    def __init__(self, config='config.toml'):
+        self._config = toml.load(config)
 
-        # TorrServer's
-        torr_servers = config.get('torrservers')
-        # Адрес RSS. Можно использовать RSS для чтения, чтобы подгрузить постеры напрямую из RSS
-        url = config.get('litr').get('url')
+    def check_updates(self):
+        print('Дата отправки запроса {}'.format(str(datetime.now())))
 
-        # для загрузки постеров на imgur
-        imgur_token = config.get('imgur_token').get('token')
-        rss_text = requests.get(url).text
-        print('Дата отправки запроса ' + str(datetime.now()))
-        print('')
-
-        otkaz = False
+        self._rss_update = requests.get(self._config.get('litr').get('url')).text
         path_old_rss = os.path.basename(sys.argv[0]) + '_old.rss'
         try:
-            old_rss = open(path_old_rss, 'r').read()
-            if rss_text == old_rss:
+            self._rss_old = open(path_old_rss, 'r', encoding="utf-8").read()
+            if self._rss_update == self._rss_old:
                 print('Без изменений. Пропущено')
-                print('Для перезапуска удалите файл ' + path_old_rss)
-                otkaz = True
+                print('Для перезапуска удалите файл {}'.format(path_old_rss))
+                return False
         except OSError:
-            print("Could not open/read file")
+            my_file = codecs.open(path_old_rss, 'w', 'utf-8')
+            my_file.write(self._rss_update)
+            my_file.close()
+            return True
 
-        if otkaz:
-            exit()
+    def run(self):
 
-        my_file = open(path_old_rss, 'w')
-        my_file.write(rss_text)
-        my_file.close()
+        if self.check_updates():
+            self.process_torrserver()
 
-        for torr_server in torr_servers:
-            print('-------------------------------------------')
-            print(torr_server['host'])
-            print('-------------------------------------------')
+    def process_torrserver(self):
+        for torrserver in self._config.get('torrservers'):
+            print('-------------------------------------------\n'
+                  'Сервер: {}\n'
+                  '-------------------------------------------'.format(torrserver['host']))
             json_list = []
             json1 = {
                 'action': 'list'
             }
             try:
-                response = requests.post(torr_server['host'] + '/torrents', '', json1, timeout=10)
+                response = requests.post(torrserver['host'] + '/torrents', '', json1, timeout=10)
                 # 200 - значит всё ОК
                 json_list = json.loads(response.text)
             except requests.exceptions.RequestException as e:
-                print('Ошибка подключения к хосту ' + torr_server['host'])
+                print('Ошибка подключения к хосту: {}'.format(torrserver['host']))
                 continue
 
-            doc = xml.dom.minidom.parseString(rss_text)
+            doc = xml.dom.minidom.parseString(self._rss_update)
             torrents = doc.getElementsByTagName('item')
             torrents_added = []
             for torrent in torrents:
 
-                torrent_title = ''
-                torrent_link = ''
-                torrent_poster = ''
-                torrent_guid = ''
+                torrent_title = torrent_link = torrent_poster = torrent_guid = ''
                 for childTitle in torrent.getElementsByTagName('title'):
                     for childName in childTitle.childNodes:
                         torrent_title = childName.data
@@ -92,15 +87,15 @@ class TorrServerRSSUpdater:
                         if start_link > 0:
                             end_link = block_text.find('&', start_link)
                             torrent_link = block_text[start_link:end_link]
-                ind_symbol = torrent_guid.rfind('#', 1);
+                ind_symbol = torrent_guid.rfind('#', 1)
                 if ind_symbol >= 0:
                     torrent_guid = torrent_guid[0:ind_symbol]
 
-                if len(imgur_token) > 0 and len(torrent_poster) > 0:
+                if len(self._config.get('imgur_token').get('token')) > 0 and len(torrent_poster) > 0:
                     api = 'https://api.imgur.com/3/image'
 
                     params = dict(
-                        client_id=imgur_token
+                        client_id=self._config.get('imgur_token').get('token')
                     )
 
                     files123 = dict(
@@ -127,7 +122,7 @@ class TorrServerRSSUpdater:
                     'hash': torrent_hash
                 }
                 try:
-                    response = requests.post(torr_server['host'] + '/torrents', '', json1, timeout=10)
+                    response = requests.post(torrserver['host'] + '/torrents', '', json1, timeout=10)
                     # 200 - значит торрент уже добавлен
                     if response.status_code == 200:
                         print('Уже добавлен')
@@ -147,7 +142,7 @@ class TorrServerRSSUpdater:
                     'data': torrent_guid
                 }
                 try:
-                    response = requests.post(torr_server['host'] + '/torrents', '', json1, timeout=10)
+                    response = requests.post(torrserver['host'] + '/torrents', '', json1, timeout=10)
                     # 200 - значит всё ОК
                     if response.status_code == 200:
                         print('Новый торрент добавлен')
@@ -183,7 +178,7 @@ class TorrServerRSSUpdater:
                     'hash': old_hash
                 }
                 try:
-                    response = requests.post(torr_server['host'] + '/viewed', '', json1, timeout=10)
+                    response = requests.post(torrserver['host'] + '/viewed', '', json1, timeout=10)
                     # 200 - значит всё ОК
                     viewed_list = json.loads(response.text)
                 except requests.exceptions.RequestException as e:
@@ -198,7 +193,7 @@ class TorrServerRSSUpdater:
                         'file_index': viewed_index['file_index']
                     }
                     try:
-                        response = requests.post(torr_server['host'] + '/viewed', '', json1, timeout=10)
+                        response = requests.post(torrserver['host'] + '/viewed', '', json1, timeout=10)
                         # 200 - значит всё ОК
                         if response.status_code == 200:
                             set_viewed_complete = True
@@ -214,15 +209,13 @@ class TorrServerRSSUpdater:
                     'hash': old_hash
                 }
                 try:
-                    response = requests.post(torr_server['host'] + '/torrents', '', json1, timeout=10)
+                    response = requests.post(torrserver['host'] + '/torrents', '', json1, timeout=10)
                     # 200 - значит всё ОК
                     if response.status_code == 200:
                         print('Старый торрент удален')
                 except requests.exceptions.RequestException as e:
                     print('Ошибка подключения')
                     continue
-
-                print('')
 
 
 if __name__ == '__main__':

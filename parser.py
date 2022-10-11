@@ -9,10 +9,10 @@ import requests
 
 
 class TorrServerRSSUpdater:
-    _config = dict
-    _rss_update = str
-    _rss_old = str
-    _toml_string = """
+    __config = dict
+    __rss_update = str
+    __rss_old = str
+    __toml_string = """
     [[torrservers]]
     host = "http://127.0.0.1:8090"
     
@@ -25,9 +25,9 @@ class TorrServerRSSUpdater:
 
     def __init__(self, config='config.toml'):
         if os.path.exists('config.toml'):
-            self._config = toml.load(config)
+            self.__config = toml.load(config)
         else:
-            parsed_toml = toml.loads(self._toml_string)
+            parsed_toml = toml.loads(self.__toml_string)
             with open('config.toml', 'w') as f:
                 toml.dump(parsed_toml, f)
             print('Создан файл конфигурации config.toml')
@@ -37,24 +37,29 @@ class TorrServerRSSUpdater:
     def check_updates(self):
         print('Дата отправки запроса {}'.format(str(datetime.now())))
 
-        self._rss_update = requests.get(self._config.get('litr').get('url')).text
+        self.__rss_update = requests.get(self.__config.get('litr').get('url')).text
         if os.path.exists('old.rss'):
             try:
-                self._rss_old = open('old.rss', 'r', encoding="utf-8").read()
-                if self._rss_update == self._rss_old:
+                self.__rss_old = open('old.rss', 'r', encoding="utf-8").read()
+                if self.__rss_update == self.__rss_old:
                     print('Без изменений. Пропущено')
                     print('Для перезапуска удалите файл {}'.format('old.rss'))
                     return False
+                else:
+                    my_file = codecs.open('old.rss', 'w', 'utf-8')
+                    my_file.write(self.__rss_update)
+                    my_file.close()
+                    return True
             except OSError:
                 raise "Ошибка чтения файла старого запроса"
         else:
             my_file = codecs.open('old.rss', 'w', 'utf-8')
-            my_file.write(self._rss_update)
+            my_file.write(self.__rss_update)
             my_file.close()
             return True
 
     def process_torrserver(self):
-        for torrserver in self._config.get('torrservers'):
+        for torrserver in self.__config.get('torrservers'):
             print('-------------------------------------------\n'
                   'Сервер: {}\n'
                   '-------------------------------------------'.format(torrserver['host']))
@@ -73,7 +78,7 @@ class TorrServerRSSUpdater:
                 print('Ошибка подключения к хосту: {}'.format(torrserver['host']))
                 continue
 
-            doc = xml.dom.minidom.parseString(self._rss_update)
+            doc = xml.dom.minidom.parseString(self.__rss_update)
             torrents = doc.getElementsByTagName('item')
             torrents_added = []
             for torrent in torrents:
@@ -107,11 +112,11 @@ class TorrServerRSSUpdater:
                 if ind_symbol >= 0:
                     torrent_guid = torrent_guid[0:ind_symbol]
 
-                if len(self._config.get('imgur_token').get('token')) > 0 and len(torrent_poster) > 0:
+                if len(self.__config.get('imgur_token').get('token')) > 0 and len(torrent_poster) > 0:
                     api = 'https://api.imgur.com/3/image'
 
                     params = dict(
-                        client_id=self._config.get('imgur_token').get('token')
+                        client_id=self.__config.get('imgur_token').get('token')
                     )
 
                     files123 = dict(

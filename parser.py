@@ -2,22 +2,20 @@ import json
 import os
 import toml
 import codecs
-import xml.dom.minidom
-from datetime import datetime
-
 import requests
+from datetime import datetime
 
 
 class TorrServerRSSUpdater:
     __config = dict
-    __rss_update = str
-    __rss_old = str
+    __json_update = str
+    __json_old = str
     __toml_string = """
     [[torrservers]]
     host = "http://127.0.0.1:8090"
     
     [litr]
-    url = "http://litr.cc/rss/..."
+    url = "https://litr.cc/feed/..."
     
     [imgur_token]
     token = ""
@@ -37,32 +35,32 @@ class TorrServerRSSUpdater:
     def check_updates(self):
         print('Дата отправки запроса {}'.format(str(datetime.now())))
 
-        self.__rss_update = requests.get(self.__config.get('litr').get('url')).text
-        if os.path.exists('old.rss'):
+        self.__json_update = requests.get(self.__config.get('litr').get('url')).text
+        if os.path.exists('old.tmp'):
             try:
-                self.__rss_old = open('old.rss', 'r', encoding="utf-8").read()
-                if self.__rss_update == self.__rss_old:
+                self.__json_old = open('old.tmp', 'r', encoding="utf-8").read()
+                if self.__json_update == self.__json_old:
                     print('Без изменений. Пропущено')
-                    print('Для перезапуска удалите файл {}'.format('old.rss'))
+                    print('Для перезапуска удалите файл {}'.format('old.tmp'))
                     return False
                 else:
-                    my_file = codecs.open('old.rss', 'w', 'utf-8')
-                    my_file.write(self.__rss_update)
+                    my_file = codecs.open('old.tmp', 'w', 'utf-8')
+                    my_file.write(self.__json_update)
                     my_file.close()
                     return True
             except OSError:
                 raise "Ошибка чтения файла старого запроса"
         else:
-            my_file = codecs.open('old.rss', 'w', 'utf-8')
-            my_file.write(self.__rss_update)
+            my_file = codecs.open('old.tmp', 'w', 'utf-8')
+            my_file.write(self.__json_update)
             my_file.close()
             return True
 
     def process_torrserver(self):
         for torrserver in self.__config.get('torrservers'):
             print('-------------------------------------------\n'
-                  'Сервер: {}\n'
-                  '-------------------------------------------'.format(torrserver['host']))
+                  f"Сервер: {torrserver['host']}\n"
+                  '-------------------------------------------')
             json_list = []
             try:
                 response = requests.post(
@@ -78,39 +76,22 @@ class TorrServerRSSUpdater:
                 print('Ошибка подключения к хосту: {}'.format(torrserver['host']))
                 continue
 
-            doc = xml.dom.minidom.parseString(self.__rss_update)
-            torrents = doc.getElementsByTagName('item')
+            torrents = json.loads(self.__json_update)['items']
             torrents_added = []
             for torrent in torrents:
 
-                torrent_title = torrent_link = torrent_poster = torrent_guid = ''
-                for childTitle in torrent.getElementsByTagName('title'):
-                    for childName in childTitle.childNodes:
-                        torrent_title = childName.data
-                for childLink in torrent.getElementsByTagName('link'):
-                    for childName in childLink.childNodes:
-                        torrent_link = childName.data
-                for childGuid in torrent.getElementsByTagName('guid'):
-                    for childName in childGuid.childNodes:
-                        torrent_guid = childName.data
+                # torrent_title = torrent_link = torrent_poster = torrent_guid = ''
+                torrent_title = torrent.get('title', '')
+                torrent_link = torrent.get('url', '')
+                torrent_hash = torrent.get('id', '').lower()
+                torrent_poster = torrent.get('image', '')
 
-                if (len(torrent_link) == 0) or (torrent_link[0:4] == 'http'):
-                    # значит это RSS для чтения, находим магнет ссылку и постер в html содержимом
-                    description_block = torrent.getElementsByTagName('description')
-                    if len(description_block) > 0 and len(description_block[0].childNodes) > 0:
-                        block_text = description_block[0].childNodes[0].data
-                        img_tag = 'img src="'
-                        start_img = block_text.find(img_tag)
-                        if start_img > 0:
-                            end_img = block_text.find('" alt="', start_img)
-                            torrent_poster = block_text[start_img + len(img_tag):end_img]
-                        start_link = block_text.find('magnet:')
-                        if start_link > 0:
-                            end_link = block_text.find('&', start_link)
-                            torrent_link = block_text[start_link:end_link]
-                ind_symbol = torrent_guid.rfind('#', 1)
-                if ind_symbol >= 0:
-                    torrent_guid = torrent_guid[0:ind_symbol]
+                # получение guid из litr
+                litr_read = json.loads(requests.get(self.__config.get('litr').get('url') + '/read').text)
+                torrent_guid = ''
+                for item in litr_read['items']:
+                    if item['title'] == torrent_title:
+                        torrent_guid = item['id']
 
                 if len(self.__config.get('imgur_token').get('token')) > 0 and len(torrent_poster) > 0:
                     api = 'https://api.imgur.com/3/image'
@@ -133,11 +114,10 @@ class TorrServerRSSUpdater:
 
                 print(torrent_title)
                 print(torrent_link)
-                print(torrent_guid)
+                print("torrent_guid: {}".format(torrent_guid))
                 print(torrent_poster)
 
                 # Проверяем добавляли ли торрент с таким хэшем ранее, если да, то ничего не делаем
-                torrent_hash = torrent_link.replace('magnet:?xt=urn:btih:', '')
                 try:
                     response = requests.post(
                         torrserver['host'] + '/torrents',
@@ -166,7 +146,7 @@ class TorrServerRSSUpdater:
                             'title': torrent_title,
                             'poster': torrent_poster,
                             'save_to_db': True,
-                            'data': torrent_guid
+                            'data': json.dumps({'torrent_guid': torrent_guid})
                         },
                         timeout=10
                     )
@@ -184,10 +164,12 @@ class TorrServerRSSUpdater:
                 old_hash = ''
                 current_torrent = 0
                 for old_torrent in json_list:
+                    if torrent_hash == torrent_guid or torrent_guid == '':
+                        break
                     current_torrent += 1
                     if current_torrent > search_limit:
                         break
-                    if 'data' not in old_torrent or 'hash' not in old_torrent:
+                    if not 'data' in old_torrent or not 'hash' in old_torrent:
                         continue
                     if old_torrent['data'] == torrent_guid and old_torrent['hash'] != torrent_hash:
                         old_hash = old_torrent['hash']

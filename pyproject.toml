@@ -6,7 +6,7 @@ authors = ["Chuvakstepan", "Kolovatoff"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-requests = "^2.28.1"
+requests = "^2.28.2"
 toml = "^0.10.2"
 
 [tool.poetry.dev-dependencies]
